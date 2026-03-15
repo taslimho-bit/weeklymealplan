@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>每周健康食谱</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #f7f3ee;
+      color: #333;
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #e8703a, #c45020);
+      color: white;
+      padding: 22px 32px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+    }
+    header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: 1px; }
+    header p { font-size: 0.88rem; opacity: 0.85; margin-top: 5px; }
+
+    .week-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 32px;
+      background: white;
+      border-bottom: 1px solid #ede8e2;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .week-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #c45020;
+    }
+    .nav-buttons { display: flex; gap: 8px; }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.83rem;
+      font-weight: 600;
+      transition: all 0.18s;
+    }
+    .btn-primary { background: #e8703a; color: white; }
+    .btn-primary:hover { background: #c45020; transform: translateY(-1px); box-shadow: 0 3px 8px rgba(232,112,58,0.3); }
+    .btn-secondary { background: #f0ebe3; color: #666; }
+    .btn-secondary:hover { background: #e4dcd3; }
+
+    .main { padding: 20px 24px; overflow-x: auto; }
+
+    .week-grid {
+      display: grid;
+      grid-template-columns: 56px repeat(7, 1fr);
+      gap: 7px;
+      min-width: 760px;
+    }
+
+    .grid-corner { /* empty top-left */ }
+
+    .grid-header {
+      text-align: center;
+      padding: 9px 4px;
+      font-weight: 700;
+      font-size: 0.82rem;
+      color: #666;
+      background: white;
+      border-radius: 8px;
+    }
+    .grid-header.today {
+      background: #fff3ed;
+      color: #e8703a;
+      border: 1.5px solid #f8c8a8;
+    }
+
+    .meal-type-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #888;
+      background: white;
+      border-radius: 8px;
+      padding: 6px 0;
+    }
+
+    .meal-card {
+      background: white;
+      border-radius: 10px;
+      padding: 9px 10px;
+      cursor: pointer;
+      transition: all 0.18s;
+      border: 2px solid transparent;
+      border-left-width: 4px;
+    }
+    .meal-card:hover {
+      border-color: #e8703a;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 14px rgba(232,112,58,0.15);
+    }
+    .meal-card.breakfast { border-left-color: #f9c74f; }
+    .meal-card.lunch     { border-left-color: #76c442; }
+    .meal-card.dinner    { border-left-color: #4a90d9; }
+
+    .meal-name {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+      line-height: 1.35;
+    }
+    .meal-cal {
+      font-size: 0.72rem;
+      color: #e8703a;
+      font-weight: 600;
+    }
+
+    .total-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      writing-mode: vertical-rl;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #aaa;
+    }
+    .day-total {
+      text-align: center;
+      padding: 8px 4px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, #e8703a, #c45020);
+      border-radius: 9px;
+      line-height: 1.3;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      gap: 18px;
+      padding: 10px 24px 2px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: #777;
+    }
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 2px;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.48);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal {
+      background: white;
+      border-radius: 18px;
+      max-width: 560px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      animation: slideUp 0.25s ease;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(24px); opacity: 0; }
+      to   { transform: translateY(0);    opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 20px 24px 14px;
+      border-bottom: 1px solid #f0ebe2;
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 1;
+      border-radius: 18px 18px 0 0;
+    }
+    .modal-header h2 { font-size: 1.2rem; color: #222; padding-right: 30px; }
+
+    .modal-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 11px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .tag-cal  { background: #fff3ed; color: #e8703a; }
+    .tag-time { background: #f0fae8; color: #5aa328; }
+    .tag-diff { background: #eef3ff; color: #4a6cf7; }
+
+    .modal-close {
+      position: absolute;
+      top: 16px; right: 18px;
+      width: 30px; height: 30px;
+      border: none;
+      background: #f0ebe3;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 1rem;
+      color: #777;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .modal-close:hover { background: #e0d6cc; }
+
+    .modal-body { padding: 18px 24px 24px; }
+
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 18px 0 8px;
+    }
+    .section-title:first-child { margin-top: 0; }
+
+    .ingredients-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+    .ing-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: #f8f4ee;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      color: #444;
+    }
+    .ing-item::before {
+      content: '';
+      width: 6px; height: 6px;
+      background: #e8703a;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .steps-list { list-style: none; }
+    .steps-list li {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 11px;
+      font-size: 0.87rem;
+      line-height: 1.65;
+      color: #444;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 22px; height: 22px;
+      background: #e8703a;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 800;
+      margin-top: 3px;
+    }
+
+    /* Shopping list categories */
+    .cat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .shop-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      background: #f8f4ee;
+      border-radius: 8px;
+      font-size: 0.83rem;
+      color: #444;
+    }
+    .shop-item::before {
+      content: '☐';
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    @media (max-width: 600px) {
+      header { padding: 16px 16px; }
+      .week-nav { padding: 10px 16px; }
+      .main { padding: 12px 10px; }
+      .legend { padding: 8px 14px 0; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🍚 每周健康食谱</h1>
+  <p>中式家常菜 · 每日热量 ≤ 1500 千卡 · 食材超市轻松购</p>
+</header>
+
+<div class="week-nav">
+  <div class="week-title" id="weekTitle">第 1 周</div>
+  <div class="nav-buttons">
+    <button class="btn btn-secondary" onclick="prevWeek()">◀ 上一周</button>
+    <button class="btn btn-secondary" onclick="nextWeek()">下一周 ▶</button>
+    <button class="btn btn-primary" onclick="showShoppingList()">📝 购物清单</button>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#f9c74f"></div>早餐</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#76c442"></div>午餐</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#4a90d9"></div>晚餐</div>
+  <div class="legend-item" style="margin-left:auto;color:#bbb;font-size:0.76rem;">点击任意菜品查看食谱详情</div>
+</div>
+
+<div class="main">
+  <div class="week-grid" id="weekGrid"></div>
+</div>
+
+<!-- Recipe Modal -->
+<div class="modal-overlay" id="recipeModal" onclick="closeModal('recipeModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModal('recipeModal')">✕</button>
+      <h2 id="modalTitle"></h2>
+      <div class="modal-meta" id="modalMeta"></div>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- Shopping List Modal -->
+<div class="modal-overlay" id="shoppingModal" onclick="closeModal('shoppingModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <button class="modal-close" onclick="closeModal('shoppingModal')">✕</button>
+      <h2>📝 本周购物清单</h2>
+      <div class="modal-meta"><span class="tag tag-time">点击方框可手动勾选</span></div>
+    </div>
+    <div class="modal-body" id="shoppingBody"></div>
+  </div>
+</div>
+
+<script>
+// ─── 菜品数据库 ────────────────────────────────────────────────
+
+const mealDB = {
+  // ── 早餐 (200–290 kcal) ──────────────────────────────────────
+  b1: {
+    name: '小米粥 + 水煮蛋',
+    type: 'b', cal: 240, time: '20分钟', diff: '简单',
+    ingredients: ['小米 50g', '鸡蛋 1个', '清水适量'],
+    steps: [
+      '小米洗净，加入约400ml清水，大火烧开。',
+      '转小火，煮20分钟至粥稠软滑，可适量加盐。',
+      '同时另起锅冷水放入鸡蛋，煮沸后计时8分钟捞出。',
+      '过凉水剥壳，搭配小米粥食用。'
+    ]
+  },
+  b2: {
+    name: '燕麦粥 + 无糖豆浆',
+    type: 'b', cal: 255, time: '10分钟', diff: '简单',
+    ingredients: ['即食燕麦 50g', '无糖豆浆 250ml', '热水 150ml'],
+    steps: [
+      '将即食燕麦倒入碗中，加150ml刚烧开的热水。',
+      '搅拌均匀，静置3分钟让燕麦充分吸水变软。',
+      '豆浆加热至温热（微波炉1分钟或锅中小火加热）。',
+      '搭配食用，可按口味加少量蜂蜜。'
+    ]
+  },
+  b3: {
+    name: '皮蛋瘦肉粥',
+    type: 'b', cal: 280, time: '30分钟', diff: '中等',
+    ingredients: ['大米 50g', '猪瘦肉 30g', '皮蛋 半个', '姜丝少许', '盐、白胡椒粉少许', '葱花少许'],
+    steps: [
+      '大米洗净，加入500ml清水，大火煮开后转小火。',
+      '猪瘦肉切细丝，用盐、白胡椒粉腌10分钟。',
+      '皮蛋剥壳切小块备用。',
+      '粥煮约20分钟后，加入肉丝、皮蛋、姜丝，再煮5分钟。',
+      '加盐调味，撒葱花出锅，口感咸香顺滑。'
+    ]
+  },
+  b4: {
+    name: '全麦馒头 + 豆浆',
+    type: 'b', cal: 248, time: '8分钟', diff: '简单',
+    ingredients: ['全麦馒头 1个（约80g）', '无糖豆浆 250ml'],
+    steps: [
+      '馒头放入蒸锅，水开后蒸5~6分钟至热透。',
+      '豆浆倒入锅中，小火加热至微沸，撇去浮沫。',
+      '搭配食用即可，营养均衡简单方便。'
+    ]
+  },
+  b5: {
+    name: '蒸红薯 + 豆浆',
+    type: 'b', cal: 228, time: '20分钟', diff: '简单',
+    ingredients: ['红薯 150g', '无糖豆浆 200ml'],
+    steps: [
+      '红薯洗净不去皮，切成2cm厚片。',
+      '上锅冷水，大火蒸15~18分钟至竹签可轻松插入。',
+      '豆浆加热备用。',
+      '搭配食用，红薯天然甜味代替糖分。'
+    ]
+  },
+  b6: {
+    name: '杂粮粥 + 咸蛋',
+    type: 'b', cal: 268, time: '30分钟', diff: '简单',
+    ingredients: ['大米 30g', '小米 20g', '红豆 15g（提前浸泡）', '咸鸡蛋 1个', '清水适量'],
+    steps: [
+      '红豆提前浸泡2小时或隔夜，让其充分吸水。',
+      '所有谷物洗净，加入约700ml清水。',
+      '大火烧开后转小火，煮25~30分钟至软烂绵密。',
+      '搭配咸鸡蛋（对半切），咸淡搭配，开胃下粥。'
+    ]
+  },
+  b7: {
+    name: '豆腐脑 + 小馒头',
+    type: 'b', cal: 258, time: '10分钟', diff: '简单',
+    ingredients: ['豆腐脑 300g（超市购买）', '小馒头 1个（约60g）', '生抽 1茶匙', '香油 几滴', '榨菜丁少许', '葱花少许'],
+    steps: [
+      '豆腐脑超市购买现成品，加热或直接食用均可。',
+      '调入生抽、几滴香油提香。',
+      '放上榨菜丁和葱花，增加风味层次。',
+      '馒头上锅蒸热，搭配食用。'
+    ]
+  },
+
+  // ── 午餐 (450–570 kcal) ──────────────────────────────────────
+  l1: {
+    name: '番茄炒蛋 + 炒菠菜 + 米饭',
+    type: 'l', cal: 478, time: '25分钟', diff: '简单',
+    ingredients: ['番茄 2个（约300g）', '鸡蛋 2个', '菠菜 100g', '大米 80g（生重）', '植物油 10ml', '盐少许', '白糖 少许', '葱段少许'],
+    steps: [
+      '大米洗净，加适量水煮饭备用。',
+      '番茄洗净切大块，鸡蛋打散加少许盐搅匀。',
+      '热锅少油（约5ml），倒入蛋液中火翻炒至半熟盛出。',
+      '同锅下葱段炒香，放番茄大火翻炒出汁，加少许盐和糖调味。',
+      '倒入鸡蛋一起翻炒均匀，出锅。',
+      '菠菜洗净焯水30秒，另起锅少油快炒，加盐出锅。'
+    ]
+  },
+  l2: {
+    name: '青椒鸡丝 + 米饭',
+    type: 'l', cal: 488, time: '25分钟', diff: '中等',
+    ingredients: ['鸡胸肉 120g', '青椒 2个', '大米 80g（生重）', '植物油 10ml', '盐少许', '生抽 1茶匙', '淀粉 1茶匙', '姜末、蒜末少许'],
+    steps: [
+      '鸡胸肉切细丝，加盐、生抽、淀粉抓匀腌制10分钟。',
+      '青椒去籽去蒂，切细丝备用。',
+      '大米煮饭备用。',
+      '热锅少油，下鸡丝中火翻炒至变白散开，盛出备用。',
+      '同锅下姜蒜末炒香，放青椒大火快炒1分钟。',
+      '倒入鸡丝，加盐和少许生抽调味，翻炒均匀出锅。'
+    ]
+  },
+  l3: {
+    name: '清蒸鱼 + 清炒白菜 + 米饭',
+    type: 'l', cal: 462, time: '30分钟', diff: '中等',
+    ingredients: ['鲈鱼段或草鱼段 150g', '大白菜 150g', '大米 80g（生重）', '植物油 8ml', '盐少许', '生抽 2茶匙', '姜片、葱段适量', '料酒 1茶匙'],
+    steps: [
+      '鱼段用盐和料酒腌制10分钟，去腥增香。',
+      '大米煮饭备用。',
+      '盘中摆上姜片，放鱼段，再盖上葱段。',
+      '水开后上锅大火蒸8~10分钟，鱼肉变白即熟。',
+      '淋上2茶匙生抽，浇上刚烧热的少许植物油，发出滋滋声。',
+      '白菜切宽片，热锅少油大火翻炒，加盐出锅。'
+    ]
+  },
+  l4: {
+    name: '木须肉 + 米饭',
+    type: 'l', cal: 528, time: '30分钟', diff: '中等',
+    ingredients: ['猪瘦肉 80g', '鸡蛋 2个', '干木耳 10g（泡发）', '干黄花菜 15g（泡发）', '黄瓜 半根', '大米 80g（生重）', '植物油 12ml', '盐、生抽适量', '淀粉少许'],
+    steps: [
+      '木耳、黄花菜分别泡发约30分钟，黄花菜去硬蒂。',
+      '猪肉切薄片，用生抽、淀粉、少许盐腌制。',
+      '大米煮饭备用。',
+      '鸡蛋打散炒熟成大块盛出备用。',
+      '热锅少油，下肉片翻炒至变色，加木耳和黄花菜翻炒2分钟。',
+      '加入鸡蛋和黄瓜片，加盐调味，翻炒均匀出锅。'
+    ]
+  },
+  l5: {
+    name: '西兰花炒虾仁 + 米饭',
+    type: 'l', cal: 498, time: '20分钟', diff: '简单',
+    ingredients: ['虾仁 100g（新鲜或冷冻）', '西兰花 160g', '大米 80g（生重）', '植物油 8ml', '盐少许', '生抽 1茶匙', '蒜末适量', '淀粉少许'],
+    steps: [
+      '西兰花掰成小朵，洗净后放入沸水焯烫2分钟，捞出沥干。',
+      '虾仁解冻洗净，用盐和少许淀粉腌制5分钟。',
+      '大米煮饭备用。',
+      '热锅少油下蒜末爆香，加虾仁翻炒至变红弯曲。',
+      '倒入西兰花，加盐、生抽翻炒均匀，约1分钟出锅。'
+    ]
+  },
+  l6: {
+    name: '土豆炖鸡腿 + 米饭',
+    type: 'l', cal: 558, time: '45分钟', diff: '中等',
+    ingredients: ['鸡腿 1个（约180g）', '土豆 1个（约150g）', '大米 80g（生重）', '植物油 10ml', '生抽 2茶匙', '老抽 1茶匙', '八角 1个', '葱姜蒜适量', '盐少许'],
+    steps: [
+      '鸡腿斩块，冷水入锅焯水，煮开后撇去血沫，捞出用热水洗净。',
+      '土豆去皮切滚刀块，大米煮饭备用。',
+      '热锅少油下葱姜蒜爆香，放鸡块翻炒至表面微黄。',
+      '加入生抽、老抽、八角，翻炒上色，加热水没过食材。',
+      '大火烧开，转小火炖20分钟，放入土豆块。',
+      '再炖10分钟，大火收汁至浓稠，加盐调味出锅。'
+    ]
+  },
+  l7: {
+    name: '冬瓜排骨汤 + 炒菜心 + 米饭',
+    type: 'l', cal: 518, time: '50分钟', diff: '中等',
+    ingredients: ['猪排骨 150g', '冬瓜 200g', '菜心 100g', '大米 80g（生重）', '植物油 8ml', '盐适量', '姜片 3片', '葱花少许'],
+    steps: [
+      '排骨冷水入锅，大火焯去血沫，捞出用温水冲洗干净。',
+      '冬瓜去皮去籽，切2cm厚块，大米煮饭备用。',
+      '锅中加入1500ml清水，放入排骨和姜片，大火烧开。',
+      '转小火炖30分钟，加入冬瓜再炖10分钟至透明。',
+      '加盐调味，撒葱花，汤鲜味美。',
+      '菜心洗净，热锅少油大火快炒1分钟，加盐出锅。'
+    ]
+  },
+
+  // ── 晚餐 (270–360 kcal) ──────────────────────────────────────
+  d1: {
+    name: '蛋花汤 + 清炒菠菜 + 蒸南瓜',
+    type: 'd', cal: 318, time: '20分钟', diff: '简单',
+    ingredients: ['鸡蛋 1个', '菠菜 100g', '南瓜 150g', '植物油 5ml', '盐少许', '香油 几滴', '葱花少许'],
+    steps: [
+      '南瓜去皮切片，上锅冷水大火蒸15分钟至熟软。',
+      '菠菜洗净切段，沸水焯烫30秒，捞出沥干。',
+      '热锅少油，大火快炒菠菜30秒，加少许盐出锅。',
+      '另起锅加400ml水烧开，鸡蛋打散后缓缓倒入，边倒边搅成蛋花。',
+      '加盐调味，淋几滴香油，撒葱花，三道一起享用。'
+    ]
+  },
+  d2: {
+    name: '凉拌黄瓜 + 番茄豆腐汤',
+    type: 'd', cal: 278, time: '15分钟', diff: '简单',
+    ingredients: ['黄瓜 1根', '番茄 1个', '内酯豆腐 150g', '蒜末适量', '盐少许', '生抽 1茶匙', '米醋 1茶匙', '香油 几滴'],
+    steps: [
+      '黄瓜洗净，用刀拍碎后切段，加入蒜末。',
+      '调入盐、生抽、米醋、香油拌匀，腌5分钟入味。',
+      '番茄切块，内酯豆腐切小块备用。',
+      '锅中烧水400ml，下番茄煮2分钟出汁，加盐调味。',
+      '轻轻放入豆腐，中火煮2分钟，撒葱花出锅。'
+    ]
+  },
+  d3: {
+    name: '紫菜蛋花汤 + 蒸豆腐 + 玉米',
+    type: 'd', cal: 298, time: '20分钟', diff: '简单',
+    ingredients: ['干紫菜 5g', '鸡蛋 1个', '嫩豆腐 200g', '玉米 半根（约100g）', '盐少许', '生抽 1茶匙', '香油 几滴', '葱花少许'],
+    steps: [
+      '玉米切段，上锅冷水大火蒸15分钟。',
+      '嫩豆腐切块，上锅蒸8分钟，取出淋生抽和香油。',
+      '干紫菜用水泡发，撕成小片。',
+      '锅中烧400ml水开锅，下紫菜，将蛋液缓缓倒入成蛋花。',
+      '加盐调味，淋香油，撒葱花出锅，三道搭配食用。'
+    ]
+  },
+  d4: {
+    name: '清炒绿豆芽 + 小米粥 + 蒸鸡蛋羹',
+    type: 'd', cal: 348, time: '25分钟', diff: '简单',
+    ingredients: ['绿豆芽 150g', '小米 40g', '鸡蛋 1个', '植物油 5ml', '盐少许', '生抽 1茶匙', '香油 几滴', '姜丝少许'],
+    steps: [
+      '小米加约350ml水，大火烧开转小火煮20分钟成粥。',
+      '鸡蛋打入碗中加少许盐，加入等量温水，搅匀去泡沫。',
+      '蛋液上锅蒸8~10分钟，表面凝固不流动即熟，淋生抽香油。',
+      '豆芽洗净，热锅少油下姜丝爆香，大火翻炒豆芽2分钟。',
+      '加盐调味出锅，三道一起享用。'
+    ]
+  },
+  d5: {
+    name: '番茄蛋汤 + 蒸地瓜 + 炒时蔬',
+    type: 'd', cal: 328, time: '25分钟', diff: '简单',
+    ingredients: ['番茄 1个', '鸡蛋 1个', '地瓜（紫薯）150g', '应季蔬菜 100g（如莴笋、包菜）', '植物油 5ml', '盐少许'],
+    steps: [
+      '地瓜洗净切段，上锅冷水蒸20分钟至熟。',
+      '番茄切块，热锅少油翻炒至出汁，加300ml水烧开成汤。',
+      '蛋液缓缓倒入成蛋花，加盐调味，淋香油出锅。',
+      '时蔬洗净切段或切片，热锅少油大火快炒1~2分钟，加盐。',
+      '三道搭配食用，颜色丰富营养均衡。'
+    ]
+  },
+  d6: {
+    name: '凉拌豆腐 + 炒西葫芦 + 杂粮粥',
+    type: 'd', cal: 338, time: '30分钟', diff: '简单',
+    ingredients: ['内酯豆腐 200g', '西葫芦 1根（约200g）', '大米 20g + 小米 20g + 红豆 10g（泡发）', '植物油 5ml', '盐少许', '生抽 2茶匙', '香油 几滴', '蒜末适量'],
+    steps: [
+      '红豆提前泡发，与大米、小米一起加600ml水，大火开锅转小火煮25分钟成粥。',
+      '内酯豆腐切块，调入生抽、香油、蒜末拌匀，腌5分钟入味。',
+      '西葫芦洗净切薄片，热锅少油中大火翻炒2分钟。',
+      '加盐调味出锅，口感清爽，配粥最佳。'
+    ]
+  },
+  d7: {
+    name: '黄瓜蛋花汤 + 蒸红薯 + 清炒菜心',
+    type: 'd', cal: 308, time: '20分钟', diff: '简单',
+    ingredients: ['黄瓜 半根', '鸡蛋 1个', '红薯 150g', '菜心 100g', '植物油 5ml', '盐少许', '香油 几滴'],
+    steps: [
+      '红薯洗净切块，上锅冷水大火蒸15分钟。',
+      '黄瓜切薄片，锅中烧400ml水开锅下黄瓜片。',
+      '蛋液缓缓倒入成蛋花，加盐和几滴香油出锅。',
+      '菜心洗净，热锅少油大火翻炒1分钟，加盐出锅，三道搭配食用。'
+    ]
+  },
+};
+
+// ─── 周计划（4周轮换）────────────────────────────────────────
+
+const weekPlans = [
+  // 第1周
+  [
+    { b:'b1', l:'l1', d:'d1' }, // 周一 1040
+    { b:'b2', l:'l2', d:'d2' }, // 周二 1021
+    { b:'b3', l:'l3', d:'d3' }, // 周三 1040
+    { b:'b4', l:'l4', d:'d4' }, // 周四 1124
+    { b:'b5', l:'l5', d:'d5' }, // 周五 1054
+    { b:'b6', l:'l6', d:'d6' }, // 周六 1164
+    { b:'b7', l:'l7', d:'d7' }, // 周日 1084
+  ],
+  // 第2周
+  [
+    { b:'b3', l:'l5', d:'d7' }, // 周一 1070
+    { b:'b5', l:'l7', d:'d1' }, // 周二 1064
+    { b:'b1', l:'l4', d:'d5' }, // 周三 1096
+    { b:'b6', l:'l2', d:'d3' }, // 周四 1054
+    { b:'b2', l:'l6', d:'d6' }, // 周五 1151
+    { b:'b7', l:'l3', d:'d2' }, // 周六 998
+    { b:'b4', l:'l1', d:'d4' }, // 周日 1074
+  ],
+  // 第3周
+  [
+    { b:'b5', l:'l3', d:'d6' }, // 周一 1028
+    { b:'b7', l:'l1', d:'d4' }, // 周二 1084
+    { b:'b2', l:'l6', d:'d2' }, // 周三 1091
+    { b:'b4', l:'l5', d:'d7' }, // 周四 1054
+    { b:'b6', l:'l7', d:'d3' }, // 周五 1084
+    { b:'b1', l:'l4', d:'d1' }, // 周六 1086
+    { b:'b3', l:'l2', d:'d5' }, // 周日 1096
+  ],
+  // 第4周
+  [
+    { b:'b6', l:'l2', d:'d5' }, // 周一 1084
+    { b:'b4', l:'l6', d:'d3' }, // 周二 1104
+    { b:'b7', l:'l4', d:'d1' }, // 周三 1104
+    { b:'b2', l:'l3', d:'d6' }, // 周四 1055
+    { b:'b5', l:'l1', d:'d4' }, // 周五 1054
+    { b:'b3', l:'l7', d:'d2' }, // 周六 1076
+    { b:'b1', l:'l5', d:'d7' }, // 周日 1046
+  ],
+];
+
+const dayNames = ['周一','周二','周三','周四','周五','周六','周日'];
+const typeClass = { b:'breakfast', l:'lunch', d:'dinner' };
+const typeLabel = { b:'早餐', l:'午餐', d:'晚餐' };
+
+let currentWeek = 0;
+
+// ─── 渲染 ──────────────────────────────────────────────────────
+
+function renderGrid() {
+  const grid = document.getElementById('weekGrid');
+  grid.innerHTML = '';
+  document.getElementById('weekTitle').textContent = `第 ${currentWeek + 1} 周（共4周轮换）`;
+
+  const week = weekPlans[currentWeek];
+  const todayDow = new Date().getDay(); // 0=Sun
+  const dowMap = [1,2,3,4,5,6,0];      // Mon=0…Sun=6
+
+  // 左上角空格
+  grid.appendChild(div());
+
+  // 星期标题行
+  dayNames.forEach((name, i) => {
+    const isToday = todayDow === dowMap[i];
+    const el = div(`grid-header${isToday ? ' today' : ''}`);
+    el.textContent = name + (isToday ? '\n今天' : '');
+    el.style.whiteSpace = 'pre-line';
+    grid.appendChild(el);
+  });
+
+  // 早中晚三行
+  ['b','l','d'].forEach(type => {
+    const label = div('meal-type-label');
+    label.textContent = typeLabel[type];
+    grid.appendChild(label);
+
+    week.forEach((day, di) => {
+      const meal = mealDB[day[type]];
+      const card = div(`meal-card ${typeClass[type]}`);
+      card.innerHTML = `<div class="meal-name">${meal.name}</div><div class="meal-cal">${meal.cal} kcal</div>`;
+      card.onclick = () => openRecipe(day[type]);
+      grid.appendChild(card);
+    });
+  });
+
+  // 合计行
+  const totalLabel = div('total-label');
+  totalLabel.textContent = '合计';
+  grid.appendChild(totalLabel);
+
+  week.forEach(day => {
+    const total = mealDB[day.b].cal + mealDB[day.l].cal + mealDB[day.d].cal;
+    const el = div('day-total');
+    el.innerHTML = `${total}<br><span style="font-size:0.68rem;opacity:0.82">千卡</span>`;
+    grid.appendChild(el);
+  });
+}
+
+function div(cls='') {
+  const el = document.createElement('div');
+  if (cls) el.className = cls;
+  return el;
+}
+
+// ─── 食谱弹窗 ─────────────────────────────────────────────────
+
+function openRecipe(id) {
+  const m = mealDB[id];
+  document.getElementById('modalTitle').textContent = m.name;
+  document.getElementById('modalMeta').innerHTML = `
+    <span class="tag tag-cal">🔥 ${m.cal} 千卡</span>
+    <span class="tag tag-time">⏱ ${m.time}</span>
+    <span class="tag tag-diff">难度：${m.diff}</span>
+  `;
+  const ings = m.ingredients.map(i => `<div class="ing-item">${i}</div>`).join('');
+  const steps = m.steps.map((s,i) =>
+    `<li><span class="step-num">${i+1}</span><span>${s}</span></li>`
+  ).join('');
+  document.getElementById('modalBody').innerHTML = `
+    <div class="section-title">食材清单</div>
+    <div class="ingredients-grid">${ings}</div>
+    <div class="section-title">烹饪步骤</div>
+    <ol class="steps-list">${steps}</ol>
+  `;
+  document.getElementById('recipeModal').classList.add('active');
+}
+
+// ─── 购物清单 ─────────────────────────────────────────────────
+
+function showShoppingList() {
+  const week = weekPlans[currentWeek];
+  const seen = new Set();
+  const items = [];
+  week.forEach(day => {
+    ['b','l','d'].forEach(t => {
+      mealDB[day[t]].ingredients.forEach(ing => {
+        const key = ing.split(/[\s（(]/)[0];
+        if (!seen.has(key)) { seen.add(key); items.push(ing); }
+      });
+    });
+  });
+
+  const cats = {
+    '🌾 主食 & 杂粮': ['米','小米','燕麦','全麦','红薯','地瓜','紫薯','玉米','馒头','杂粮'],
+    '🥩 肉类 & 海鲜': ['猪','鸡','排骨','虾','鱼','草鱼','鲈鱼'],
+    '🥚 蛋类 & 豆制品': ['鸡蛋','皮蛋','咸鸡蛋','咸蛋','豆腐','豆浆','豆腐脑'],
+    '🥦 蔬菜': ['番茄','菠菜','白菜','菜心','青椒','西兰花','冬瓜','黄瓜','土豆','南瓜','西葫芦','豆芽','时蔬','莴笋','包菜'],
+    '🌿 干货': ['紫菜','黄花菜','木耳','红豆'],
+    '🧂 调料': ['植物油','盐','生抽','老抽','醋','香油','淀粉','糖','料酒','姜','葱','蒜','八角','桂皮','胡椒'],
+  };
+
+  const result = {};
+  const other = [];
+  items.forEach(ing => {
+    let placed = false;
+    for (const [cat, kws] of Object.entries(cats)) {
+      if (kws.some(k => ing.includes(k))) {
+        (result[cat] = result[cat]||[]).push(ing);
+        placed = true; break;
+      }
+    }
+    if (!placed) other.push(ing);
+  });
+  if (other.length) result['🔹 其他'] = other;
+
+  let html = '';
+  for (const [cat, list] of Object.entries(result)) {
+    if (!list.length) continue;
+    html += `<div class="section-title">${cat}</div><div class="cat-grid">`;
+    list.forEach(i => { html += `<div class="shop-item">${i}</div>`; });
+    html += `</div>`;
+  }
+  document.getElementById('shoppingBody').innerHTML = html;
+  document.getElementById('shoppingModal').classList.add('active');
+}
+
+// ─── 导航 ─────────────────────────────────────────────────────
+
+function nextWeek() { currentWeek = (currentWeek+1) % weekPlans.length; renderGrid(); }
+function prevWeek() { currentWeek = (currentWeek-1+weekPlans.length) % weekPlans.length; renderGrid(); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+renderGrid();
+</script>
+</body>
+</html>
